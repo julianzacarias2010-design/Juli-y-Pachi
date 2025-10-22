@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Biblioteca Futurista</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap');
+  
+  body {
+    margin: 0;
+    font-family: "Orbitron", sans-serif;
+    color: #e0e0ff;
+    min-height: 100vh;
+    background: url("25381f88-488a-4939-9eec-6657611c4642.png") no-repeat center center fixed;
+    background-size: cover;
+    backdrop-filter: blur(2px);
+  }
+
+  header {
+    text-align: center;
+    padding: 20px;
+    background: rgba(0,0,0,0.6);
+    border-bottom: 2px solid rgba(0,255,255,0.4);
+  }
+
+  h1 {
+    font-size: 2em;
+    color: #00ffff;
+    text-shadow: 0 0 15px #00ffff;
+  }
+
+  .container {
+    max-width: 900px;
+    margin: 30px auto;
+    background: rgba(0,0,0,0.7);
+    border: 1px solid rgba(0,255,255,0.3);
+    border-radius: 15px;
+    padding: 20px;
+    box-shadow: 0 0 25px rgba(0,255,255,0.2);
+  }
+
+  input, select, button, textarea {
+    background: rgba(0,0,0,0.5);
+    border: 1px solid rgba(0,255,255,0.3);
+    color: #fff;
+    border-radius: 8px;
+    padding: 8px;
+    width: 100%;
+  }
+
+  button {
+    cursor: pointer;
+    transition: 0.2s;
+  }
+  button:hover {
+    background: rgba(0,255,255,0.3);
+  }
+
+  .game-card {
+    display: flex;
+    background: rgba(255,255,255,0.05);
+    margin: 10px 0;
+    border-radius: 10px;
+    padding: 10px;
+    align-items: center;
+    border: 1px solid rgba(0,255,255,0.2);
+  }
+
+  .game-card img {
+    width: 100px;
+    height: 100px;
+    object-fit: cover;
+    border-radius: 8px;
+    margin-right: 10px;
+  }
+
+  .links a {
+    color: #00ffff;
+    text-decoration: none;
+    margin-right: 8px;
+  }
+
+  .links a:hover {
+    text-shadow: 0 0 8px #00ffff;
+  }
+
+  .hidden { display: none; }
+
+  .owner-only {
+    color: #ff6060;
+    font-size: 0.8em;
+  }
+
+  hr {
+    border: none;
+    border-top: 1px solid rgba(0,255,255,0.2);
+    margin: 20px 0;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Biblioteca Futurista de Juegos</h1>
+  <p>Agrega, visualiza y gestiona juegos fácilmente ⚡</p>
+</header>
+
+<div class="container">
+  <h2>Agregar nuevo juego</h2>
+  <div id="form-section">
+    <div id="step1">
+      <label>Nombre del juego:</label>
+      <input id="gameName" placeholder="Ej: Cyber Frontier">
+      <button onclick="nextStep(2)">Siguiente → Imagen</button>
+    </div>
+
+    <div id="step2" class="hidden">
+      <label>Imagen del juego:</label>
+      <input type="file" id="gameImage" accept="image/*" class="hidden" onchange="handleImage(event)">
+      <img id="preview" style="display:none;width:150px;margin-top:10px;border-radius:10px;">
+      <button onclick="prevStep(1)">← Volver</button>
+      <button onclick="openFilePicker()">Subir Imagen</button>
+    </div>
+
+    <div id="step3" class="hidden">
+      <label>¿Pasó por VirusTotal?</label>
+      <select id="virusTotal">
+        <option value="unknown">Desconocido</option>
+        <option value="yes">Sí</option>
+        <option value="no">No</option>
+      </select>
+      <button onclick="prevStep(2)">← Volver</button>
+      <button onclick="nextStep(4)">Siguiente → Links</button>
+    </div>
+
+    <div id="step4" class="hidden">
+      <label>Links de descarga (uno por línea):</label>
+      <textarea id="downloadLinks" rows="4" placeholder="https://..."></textarea>
+      <button onclick="prevStep(3)">← Volver</button>
+      <button onclick="addGame()">Agregar a biblioteca</button>
+    </div>
+  </div>
+
+  <hr>
+
+  <div>
+    <h2>Biblioteca</h2>
+    <input id="search" placeholder="Buscar juego..." oninput="renderLibrary()">
+    <div id="library"></div>
+  </div>
+
+  <hr>
+  <div>
+    <h3>Opciones de administrador</h3>
+    <div id="owner-section">
+      <input type="password" id="ownerPass" placeholder="Contraseña del owner">
+      <button onclick="loginOwner()">Iniciar sesión</button>
+      <button onclick="logoutOwner()">Cerrar sesión</button>
+      <button onclick="setOwnerPassword()">Crear contraseña</button>
+      <p class="owner-only">(Solo el owner puede eliminar juegos)</p>
+    </div>
+  </div>
+
+  <hr>
+  <div>
+    <button onclick="exportLibrary()">Exportar JSON</button>
+    <input type="file" id="importFile" class="hidden" onchange="importLibrary(event)">
+    <button onclick="document.getElementById('importFile').click()">Importar JSON</button>
+  </div>
+</div>
+
+<script>
+let step = 1;
+let imageData = "";
+let library = JSON.parse(localStorage.getItem("gameLibrary") || "[]");
+let ownerHash = localStorage.getItem("ownerHash") || "";
+let isOwner = sessionStorage.getItem("isOwner") === "true";
+
+function showStep(n) {
+  document.querySelectorAll('#form-section > div').forEach(div => div.classList.add('hidden'));
+  document.getElementById('step' + n).classList.remove('hidden');
+  step = n;
+  if (n === 2) openFilePicker();
+}
+
+function nextStep(n) { showStep(n); }
+function prevStep(n) { showStep(n); }
+
+function openFilePicker() {
+  document.getElementById("gameImage").click();
+}
+
+function handleImage(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    imageData = ev.target.result;
+    const img = document.getElementById("preview");
+    img.src = imageData;
+    img.style.display = "block";
+    nextStep(3);
+  }
+  reader.readAsDataURL(file);
+}
+
+function addGame() {
+  const name = document.getElementById("gameName").value.trim();
+  const vt = document.getElementById("virusTotal").value;
+  const links = document.getElementById("downloadLinks").value.split("\n").filter(l=>l.trim());
+  if (!name || !imageData) return alert("Completa todos los campos antes de agregar.");
+  const game = {id: Date.now(), name, image: imageData, vt, links};
+  library.unshift(game);
+  localStorage.setItem("gameLibrary", JSON.stringify(library));
+  alert("Juego agregado correctamente.");
+  resetForm();
+  renderLibrary();
+}
+
+function resetForm() {
+  document.getElementById("gameName").value = "";
+  document.getElementById("virusTotal").value = "unknown";
+  document.getElementById("downloadLinks").value = "";
+  document.getElementById("preview").style.display = "none";
+  imageData = "";
+  showStep(1);
+}
+
+function renderLibrary() {
+  const search = document.getElementById("search").value.toLowerCase();
+  const container = document.getElementById("library");
+  container.innerHTML = "";
+  library.filter(g=>g.name.toLowerCase().includes(search)).forEach(g=>{
+    const div = document.createElement("div");
+    div.className = "game-card";
+    div.innerHTML = `
+      <img src="${g.image}">
+      <div>
+        <h3>${g.name}</h3>
+        <p>VirusTotal: ${g.vt}</p>
+        <div class="links">
+          ${g.links.map(l=>`<a href="${l}" target="_blank">Link</a>`).join("")}
+        </div>
+        ${isOwner ? `<button onclick="deleteGame(${g.id})">Eliminar</button>` : `<span class='owner-only'>(Solo owner puede eliminar)</span>`}
+      </div>`;
+    container.appendChild(div);
+  });
+}
+
+function deleteGame(id) {
+  if (!isOwner) return alert("Solo el owner puede eliminar juegos.");
+  library = library.filter(g=>g.id !== id);
+  localStorage.setItem("gameLibrary", JSON.stringify(library));
+  renderLibrary();
+}
+
+async function hashText(text) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("");
+}
+
+async function setOwnerPassword() {
+  const pass = prompt("Introduce una nueva contraseña:");
+  if (!pass) return;
+  const h = await hashText(pass);
+  localStorage.setItem("ownerHash", h);
+  ownerHash = h;
+  alert("Contraseña creada correctamente.");
+}
+
+async function loginOwner() {
+  const pass = document.getElementById("ownerPass").value;
+  if (!ownerHash) return alert("No hay contraseña establecida.");
+  const h = await hashText(pass);
+  if (h === ownerHash) {
+    isOwner = true;
+    sessionStorage.setItem("isOwner", "true");
+    alert("Sesión iniciada como owner.");
+    renderLibrary();
+  } else alert("Contraseña incorrecta.");
+}
+
+function logoutOwner() {
+  isOwner = false;
+  sessionStorage.removeItem("isOwner");
+  renderLibrary();
+}
+
+function exportLibrary() {
+  const blob = new Blob([JSON.stringify(library, null, 2)], {type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "biblioteca.json";
+  a.click();
+}
+
+function importLibrary(e) {
+  const file = e.target.files[0];
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result);
+      if (!Array.isArray(data)) throw "Formato inválido";
+      library = data;
+      localStorage.setItem("gameLibrary", JSON.stringify(library));
+      renderLibrary();
+      alert("Importado correctamente.");
+    } catch(err) { alert("Error al importar: " + err); }
+  }
+  reader.readAsText(file);
+}
+
+renderLibrary();
+showStep(1);
+</script>
+</body>
+</html>
